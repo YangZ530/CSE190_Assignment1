@@ -58,29 +58,35 @@ void Image::Brighten (double factor)
 		return;
 	}
 	for (int i = 0; i < num_pixels; i++){
-		pixels[i] = (1 - factor) * Pixel(0, 0, 0) + factor * pixels[i];
+		pixels[i].r = ComponentScale(pixels[i].r, factor);
+		pixels[i].g = ComponentScale(pixels[i].g, factor);
+		pixels[i].b = ComponentScale(pixels[i].b, factor);
 	}
 }
 
 
-void Image::ChangeContrast (double factor)
+void Image::ChangeContrast(double factor)
 {
-  /* Your Work Here (section 3.2.2) */
-	int avg_grey;
+	/* Your Work Here (section 3.2.2) */
+	Component avg_grey = 0;
 	Pixel avgGrey;
 	for (int i = 0; i < num_pixels; i++){
 		avg_grey += pixels[i].Luminance();
 	}
 	avg_grey = avg_grey / num_pixels;
 	avgGrey = Pixel(avg_grey, avg_grey, avg_grey);
-	if (factor < 0){
+	if (factor > 0){
 		for (int i = 0; i < num_pixels; i++){
-			pixels[i] = Pixel(255, 255, 255) + (1 - factor) * avgGrey + factor * pixels[i];
+			pixels[i].r = ComponentLerp(avg_grey, pixels[i].r, factor);
+			pixels[i].g = ComponentLerp(avg_grey, pixels[i].g, factor);
+			pixels[i].b = ComponentLerp(avg_grey, pixels[i].b, factor);
 		}
 	}
 	else{
 		for (int i = 0; i < num_pixels; i++){
-			pixels[i] = (1 - factor) * avgGrey + factor * pixels[i];
+			pixels[i].r = ComponentLerp(avg_grey, 255 - pixels[i].r, -factor);
+			pixels[i].g = ComponentLerp(avg_grey, 255 - pixels[i].g, -factor);
+			pixels[i].b = ComponentLerp(avg_grey, 255 - pixels[i].b, -factor);
 		}
 	}
 }
@@ -95,7 +101,7 @@ void Image::ChangeSaturation(double factor)
 	for (int i = 0; i < num_pixels; i++){
 		//copy[i] = Pixel(pixels[i].Luminance(), pixels[i].Luminance(), pixels[i].Luminance());
 		p = Pixel(pixels[i].Luminance(), pixels[i].Luminance(), pixels[i].Luminance());
-		pixels[i] = (1 - factor) * p + factor * pixels[i];
+		pixels[i] = PixelLerp(p, pixels[i], factor);
 	}
 	//delete[] copy;
 }
@@ -108,14 +114,26 @@ void Image::ChangeGamma(double factor)
 		return;
 	}
 	for (int i = 0; i < num_pixels; i++){
-		pixels[i] = Pixel(pow(pixels[i].r, 1 / factor), pow(pixels[i].g, 1 / factor), pow(pixels[i].b, 1 / factor));
+		pixels[i].r = floor(pow(pixels[i].r / 256.0, 1.0 / factor) * 256.0);
+		pixels[i].g = floor(pow(pixels[i].g / 256.0, 1.0 / factor) * 256.0);
+		pixels[i].b = floor(pow(pixels[i].b / 256.0, 1.0 / factor) * 256.0);
 	}
 }
 
 Image* Image::Crop(int x, int y, int w, int h)
 {
   /* Your Work Here (section 3.2.5) */
-  return NULL ;
+	if (x < 0 || y < 0 || w < 0 || h < 0){
+		printf("Error: crop cannot take negative parameters");
+		return NULL;
+	}
+	Image crop = Image(w, h);
+	for (int i = 0; i < w; i++){
+		for (int j = 0; j < h; j++){
+			crop.pixels[i * j] = pixels[(i + x)*(j + y)];
+		}
+	}
+	return &crop;
 }
 
 /*
@@ -129,12 +147,30 @@ void Image::ExtractChannel(int channel)
 void Image::Quantize (int nbits)
 {
   /* Your Work Here (Section 3.3.1) */
+	if (nbits < 1 || nbits > 8){
+		printf("Error: quantization bits shoule be in range 1-8");
+		return;
+	}
+	for (int i = 0; i < num_pixels; i++){
+		pixels[i].r = floor(floor(pixels[i].r * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+		pixels[i].g = floor(floor(pixels[i].g * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+		pixels[i].b = floor(floor(pixels[i].b * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+	}
 }
 
 
 void Image::RandomDither (int nbits)
 {
   /* Your Work Here (Section 3.3.2) */
+	if (nbits < 1 || nbits > 8){
+		printf("Error: quantization bits shoule be in range 1-8");
+		return;
+	}
+	for (int i = 0; i < num_pixels; i++){
+		pixels[i].r = floor(floor(pixels[i].r * pow(2.0, nbits) / 256.0 + (rand() % 2 - 0.5)) * 255.0 / (pow(2.0, nbits) - 1));
+		pixels[i].g = floor(floor(pixels[i].g * pow(2.0, nbits) / 256.0 + (rand() % 2 - 0.5)) * 255.0 / (pow(2.0, nbits) - 1));
+		pixels[i].b = floor(floor(pixels[i].b * pow(2.0, nbits) / 256.0 + (rand() % 2 - 0.5)) * 255.0 / (pow(2.0, nbits) - 1));
+	}
 }
 
 
@@ -169,6 +205,116 @@ const double
 void Image::FloydSteinbergDither(int nbits)
 {
   /* Your Work Here (Section 3.3.3) */
+	if (nbits < 1 || nbits > 8){
+		printf("Error: quantization bits shoule be in range 1-8");
+		return;
+	}
+	for (int i = 0; i < num_pixels; i++){
+		Pixel prev = pixels[i];
+		pixels[i].r = floor(floor(pixels[i].r * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+		pixels[i].g = floor(floor(pixels[i].g * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+		pixels[i].b = floor(floor(pixels[i].b * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+
+		//caculate error
+		int er = (int)prev.r - (int)pixels[i].r;
+		int eg = (int)prev.g - (int)pixels[i].g;
+		int eb = (int)prev.b - (int)pixels[i].b;
+
+		//apply error
+		//right
+		if ((i+1) % width != 0 && i+1 <num_pixels){
+			pixels[i + 1].r = floor(pixels[i + 1].r + er*ALPHA);
+			pixels[i + 1].g = floor(pixels[i + 1].g + eg*ALPHA);
+			pixels[i + 1].b = floor(pixels[i + 1].b + eb*ALPHA);
+		}
+		else if ((i + 1) % width == 0){
+			pixels[i - width + 1].r += er*ALPHA;
+			pixels[i - width + 1].g += eg*ALPHA;
+			pixels[i - width + 1].b += eb*ALPHA;
+		}
+		//bottom left
+		if (i + width < num_pixels && i % width != 0){
+			pixels[i + width - 1].r = floor(pixels[i + width - 1].r + er*BETA);
+			pixels[i + width - 1].g = floor(pixels[i + width - 1].g + eg*BETA);
+			pixels[i + width - 1].b = floor(pixels[i + width - 1].b + eb*BETA);
+		}
+		else if (i + width >= num_pixels && i % width != 0){
+			pixels[i % width - 1].r = floor(pixels[i % width - 1].r + er*BETA);
+			pixels[i % width - 1].g = floor(pixels[i % width - 1].g + eg*BETA);
+			pixels[i % width - 1].b = floor(pixels[i % width - 1].b + eb*BETA);
+		}
+		else if (i + width < num_pixels && i % width == 0){
+			pixels[i + width*2 - 1].r = floor(pixels[i + width*2 - 1].r + er*BETA);
+			pixels[i + width*2 - 1].g = floor(pixels[i + width*2 - 1].g + eg*BETA);
+			pixels[i + width*2 - 1].b = floor(pixels[i + width*2 - 1].b + eb*BETA);
+		}
+		else if (i + width >= num_pixels && i % width == 0){
+			pixels[i % width + width - 1].r = floor(pixels[i % width + width - 1].r + er*BETA);
+			pixels[i % width + width - 1].g = floor(pixels[i % width + width - 1].g + eg*BETA);
+			pixels[i % width + width - 1].b = floor(pixels[i % width + width - 1].b + eb*BETA);
+		}
+		//bottom
+		if (i + width < num_pixels){
+			pixels[i + width].r = floor(pixels[i + width].r + er*GAMMA);
+			pixels[i + width].g = floor(pixels[i + width].g + eg*GAMMA);
+			pixels[i + width].b = floor(pixels[i + width].b + eb*GAMMA);
+		}
+		else if (i + width >= num_pixels){
+			pixels[i % width].r = floor(pixels[i % width].r + er*GAMMA);
+			pixels[i % width].g = floor(pixels[i % width].g + eg*GAMMA);
+			pixels[i % width].b = floor(pixels[i % width].b + eb*GAMMA);
+		}
+		//bottom right
+		if ((i + 1) % width != 0 && i + width < num_pixels){
+			pixels[i + width + 1].r = floor(pixels[i + width + 1].r + er*DELTA);
+			pixels[i + width + 1].g = floor(pixels[i + width + 1].g + eg*DELTA);
+			pixels[i + width + 1].b = floor(pixels[i + width + 1].b + eb*DELTA);
+		}
+		else if ((i + 1) % width == 0 && i + width < num_pixels){
+			pixels[i + 1].r = floor(pixels[i + 1].r + er*DELTA);
+			pixels[i + 1].g = floor(pixels[i + 1].g + eg*DELTA);
+			pixels[i + 1].b = floor(pixels[i + 1].b + eb*DELTA);
+		}
+		else if ((i + 1) % width != 0 && i + width >= num_pixels){
+			pixels[i % width + 1].r = floor(pixels[i % width + 1].r + er*DELTA);
+			pixels[i % width + 1].g = floor(pixels[i % width + 1].g + eg*DELTA);
+			pixels[i % width + 1].b = floor(pixels[i % width + 1].b + eb*DELTA);
+		}
+		else if ((i + 1) % width == 0 && i + width >= num_pixels){
+			pixels[0].r = floor(pixels[0].r + er*DELTA);
+			pixels[0].g = floor(pixels[0].g + eg*DELTA);
+			pixels[0].b = floor(pixels[0].b + eb*DELTA);
+		}
+	}
+	/*
+	for (int i = 0; i < width; i++){
+		for (int j = 0; j < height; j++){
+			Pixel prev = pixels[i*j];
+			pixels[i + j*width].r = floor(floor(pixels[i + j*width].r * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+			pixels[i + j*width].g = floor(floor(pixels[i + j*width].g * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+			pixels[i + j*width].b = floor(floor(pixels[i + j*width].b * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
+			Pixel curr = pixels[i*j];
+
+			//caculate error
+			Component er = prev.r - curr.r;
+			Component eg = prev.g - curr.g;
+			Component eb = prev.b - curr.b;
+			Pixel err = Pixel(er, eg, eb);
+
+			//apply error
+			if (i + 1 <width)
+				pixels[i+1 + j*width] = pixels[i + 1+j*width] + err * ALPHA;
+			if (j + 1 < height){
+				if (i-1 >0)
+					pixels[(i - 1)+(j + 1)*width] = pixels[(i - 1)+(j + 1)*width] + err * BETA;
+				pixels[i+(j + 1)*width] = pixels[i+(j + 1)*width] + err * GAMMA;
+				if (i+1<width)
+					pixels[(i + 1)+(j + 1)*width] = pixels[(i + 1)+(j + 1)*width] + err * DELTA;
+			}
+		}
+		
+	}
+	*/
 }
 
 void ImageComposite(Image *bottom, Image *top, Image *result)
