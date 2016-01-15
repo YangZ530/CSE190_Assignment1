@@ -127,13 +127,13 @@ Image* Image::Crop(int x, int y, int w, int h)
 		printf("Error: crop cannot take negative parameters");
 		return NULL;
 	}
-	Image crop = Image(w, h);
+	Image *crop = new Image(w, h);
 	for (int i = 0; i < w; i++){
 		for (int j = 0; j < h; j++){
-			crop.pixels[i * j] = pixels[(i + x)*(j + y)];
+			crop->pixels[i * j] = pixels[(i + x)*(j + y)];
 		}
 	}
-	return &crop;
+	return crop;
 }
 
 /*
@@ -220,101 +220,88 @@ void Image::FloydSteinbergDither(int nbits)
 		int eg = (int)prev.g - (int)pixels[i].g;
 		int eb = (int)prev.b - (int)pixels[i].b;
 
+		int nr = 0;
+		int ng = 0;
+		int nb = 0;
+
 		//apply error
 		//right
 		if ((i+1) % width != 0 && i+1 <num_pixels){
-			pixels[i + 1].r = floor(pixels[i + 1].r + er*ALPHA);
-			pixels[i + 1].g = floor(pixels[i + 1].g + eg*ALPHA);
-			pixels[i + 1].b = floor(pixels[i + 1].b + eb*ALPHA);
+			nr = floor(pixels[i + 1].r + er*ALPHA);
+			ng = floor(pixels[i + 1].g + eg*ALPHA);
+			nb = floor(pixels[i + 1].b + eb*ALPHA);
+			pixels[i + 1].SetClamp(nr, ng, nb);
 		}
 		else if ((i + 1) % width == 0){
-			pixels[i - width + 1].r += er*ALPHA;
-			pixels[i - width + 1].g += eg*ALPHA;
-			pixels[i - width + 1].b += eb*ALPHA;
+			nr = floor(pixels[i - width + 1].r + er*ALPHA);
+			ng = floor(pixels[i - width + 1].g + eg*ALPHA);
+			nb = floor(pixels[i - width + 1].b + eb*ALPHA);
+			pixels[i - width + 1].SetClamp(nr, ng, nb);
 		}
 		//bottom left
 		if (i + width < num_pixels && i % width != 0){
-			pixels[i + width - 1].r = floor(pixels[i + width - 1].r + er*BETA);
-			pixels[i + width - 1].g = floor(pixels[i + width - 1].g + eg*BETA);
-			pixels[i + width - 1].b = floor(pixels[i + width - 1].b + eb*BETA);
+			nr = floor(pixels[i + width - 1].r + er*BETA);
+			ng = floor(pixels[i + width - 1].g + eg*BETA);
+			nb = floor(pixels[i + width - 1].b + eb*BETA);
+			pixels[i + width - 1].SetClamp(nr, ng, nb);
 		}
 		else if (i + width >= num_pixels && i % width != 0){
-			pixels[i % width - 1].r = floor(pixels[i % width - 1].r + er*BETA);
-			pixels[i % width - 1].g = floor(pixels[i % width - 1].g + eg*BETA);
-			pixels[i % width - 1].b = floor(pixels[i % width - 1].b + eb*BETA);
+			nr = floor(pixels[i % width - 1].r + er*BETA);
+			ng = floor(pixels[i % width - 1].g + eg*BETA);
+			nb = floor(pixels[i % width - 1].b + eb*BETA);
+			pixels[i % width - 1].SetClamp(nr, ng, nb);
 		}
 		else if (i + width < num_pixels && i % width == 0){
-			pixels[i + width*2 - 1].r = floor(pixels[i + width*2 - 1].r + er*BETA);
-			pixels[i + width*2 - 1].g = floor(pixels[i + width*2 - 1].g + eg*BETA);
-			pixels[i + width*2 - 1].b = floor(pixels[i + width*2 - 1].b + eb*BETA);
+			nr = floor(pixels[i + width*2 - 1].r + er*BETA);
+			ng = floor(pixels[i + width*2 - 1].g + eg*BETA);
+			nb = floor(pixels[i + width*2 - 1].b + eb*BETA);
+			pixels[i + width * 2 - 1].SetClamp(nr, ng, nb);
 		}
 		else if (i + width >= num_pixels && i % width == 0){
-			pixels[i % width + width - 1].r = floor(pixels[i % width + width - 1].r + er*BETA);
-			pixels[i % width + width - 1].g = floor(pixels[i % width + width - 1].g + eg*BETA);
-			pixels[i % width + width - 1].b = floor(pixels[i % width + width - 1].b + eb*BETA);
+			nr = floor(pixels[i % width + width - 1].r + er*BETA);
+			ng = floor(pixels[i % width + width - 1].g + eg*BETA);
+			nb = floor(pixels[i % width + width - 1].b + eb*BETA);
+			pixels[i % width + width - 1].SetClamp(nr, ng, nb);
 		}
 		//bottom
 		if (i + width < num_pixels){
-			pixels[i + width].r = floor(pixels[i + width].r + er*GAMMA);
-			pixels[i + width].g = floor(pixels[i + width].g + eg*GAMMA);
-			pixels[i + width].b = floor(pixels[i + width].b + eb*GAMMA);
+			nr = floor(pixels[i + width].r + er*GAMMA);
+			ng = floor(pixels[i + width].g + eg*GAMMA);
+			nb = floor(pixels[i + width].b + eb*GAMMA);
+			pixels[i + width].SetClamp(nr, ng, nb);
 		}
 		else if (i + width >= num_pixels){
-			pixels[i % width].r = floor(pixels[i % width].r + er*GAMMA);
-			pixels[i % width].g = floor(pixels[i % width].g + eg*GAMMA);
-			pixels[i % width].b = floor(pixels[i % width].b + eb*GAMMA);
+			nr = floor(pixels[i % width].r + er*GAMMA);
+			ng = floor(pixels[i % width].g + eg*GAMMA);
+			nb = floor(pixels[i % width].b + eb*GAMMA);
+			pixels[i % width].SetClamp(nr, ng, nb);
 		}
 		//bottom right
 		if ((i + 1) % width != 0 && i + width < num_pixels){
-			pixels[i + width + 1].r = floor(pixels[i + width + 1].r + er*DELTA);
-			pixels[i + width + 1].g = floor(pixels[i + width + 1].g + eg*DELTA);
-			pixels[i + width + 1].b = floor(pixels[i + width + 1].b + eb*DELTA);
+			nr = floor(pixels[i + width + 1].r + er*DELTA);
+			ng = floor(pixels[i + width + 1].g + eg*DELTA);
+			nb = floor(pixels[i + width + 1].b + eb*DELTA);
+			pixels[i + width + 1].SetClamp(nr, ng, nb);
 		}
 		else if ((i + 1) % width == 0 && i + width < num_pixels){
-			pixels[i + 1].r = floor(pixels[i + 1].r + er*DELTA);
-			pixels[i + 1].g = floor(pixels[i + 1].g + eg*DELTA);
-			pixels[i + 1].b = floor(pixels[i + 1].b + eb*DELTA);
+			nr = floor(pixels[i + 1].r + er*DELTA);
+			ng = floor(pixels[i + 1].g + eg*DELTA);
+			nb = floor(pixels[i + 1].b + eb*DELTA);
+			pixels[i + 1].SetClamp(nr, ng, nb);
 		}
 		else if ((i + 1) % width != 0 && i + width >= num_pixels){
-			pixels[i % width + 1].r = floor(pixels[i % width + 1].r + er*DELTA);
-			pixels[i % width + 1].g = floor(pixels[i % width + 1].g + eg*DELTA);
-			pixels[i % width + 1].b = floor(pixels[i % width + 1].b + eb*DELTA);
+			nr = floor(pixels[i % width + 1].r + er*DELTA);
+			ng = floor(pixels[i % width + 1].g + eg*DELTA);
+			nb = floor(pixels[i % width + 1].b + eb*DELTA);
+			pixels[i % width + 1].SetClamp(nr, ng, nb);
 		}
 		else if ((i + 1) % width == 0 && i + width >= num_pixels){
-			pixels[0].r = floor(pixels[0].r + er*DELTA);
-			pixels[0].g = floor(pixels[0].g + eg*DELTA);
-			pixels[0].b = floor(pixels[0].b + eb*DELTA);
+			nr = floor(pixels[0].r + er*DELTA);
+			ng = floor(pixels[0].g + eg*DELTA);
+			nb = floor(pixels[0].b + eb*DELTA);
+			pixels[0].SetClamp(nr, ng, nb);
 		}
 	}
-	/*
-	for (int i = 0; i < width; i++){
-		for (int j = 0; j < height; j++){
-			Pixel prev = pixels[i*j];
-			pixels[i + j*width].r = floor(floor(pixels[i + j*width].r * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
-			pixels[i + j*width].g = floor(floor(pixels[i + j*width].g * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
-			pixels[i + j*width].b = floor(floor(pixels[i + j*width].b * pow(2.0, nbits) / 256.0) * 255.0 / (pow(2.0, nbits) - 1));
-			Pixel curr = pixels[i*j];
-
-			//caculate error
-			Component er = prev.r - curr.r;
-			Component eg = prev.g - curr.g;
-			Component eb = prev.b - curr.b;
-			Pixel err = Pixel(er, eg, eb);
-
-			//apply error
-			if (i + 1 <width)
-				pixels[i+1 + j*width] = pixels[i + 1+j*width] + err * ALPHA;
-			if (j + 1 < height){
-				if (i-1 >0)
-					pixels[(i - 1)+(j + 1)*width] = pixels[(i - 1)+(j + 1)*width] + err * BETA;
-				pixels[i+(j + 1)*width] = pixels[i+(j + 1)*width] + err * GAMMA;
-				if (i+1<width)
-					pixels[(i + 1)+(j + 1)*width] = pixels[(i + 1)+(j + 1)*width] + err * DELTA;
-			}
-		}
-		
-	}
-	*/
 }
 
 void ImageComposite(Image *bottom, Image *top, Image *result)
