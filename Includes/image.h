@@ -152,6 +152,14 @@ public:
     // Scales an image in x by sx, and y by sy.
     Image* Scale(int sizex, int sizey);
 
+	Pixel Image::MagnifyX(double a, double b, double  s);
+	Pixel Image::MagnifyY(double a, double b, double  s);
+	Pixel Image::MinifyX(double a, double b, double  s);
+	Pixel Image::MinifyY(double a, double b, double  s);
+
+	Pixel Image::ShiftX(double a, double b, double s);
+	Pixel Image::ShiftY(double a, double b, double s);
+
     // Translates an image in x by sx, and y by sy.
     void Shift(double sx, double sy);
 
@@ -165,7 +173,7 @@ public:
     void SetSamplingMethod(int method);
 
     // Sample image using current sampling method.
-    Pixel Sample(double u, double v, double sx, double sy);
+    //Pixel Sample(double u, double v, double sx, double sy);
 };
 
 // Composites the bottom and top images into the result image.
