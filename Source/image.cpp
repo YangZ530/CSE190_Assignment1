@@ -11,7 +11,7 @@
  **/
 
 # define PI 3.14159
-# define WIDTH 4
+# define WIDTH 2
 
 Image::Image (int width_, int height_)
 {
@@ -499,7 +499,7 @@ double mitchell(double n)
 	if (x >= 0.0 && x < 1.0)
 		return (7.0 * pow(x, 3.0) - 12.0 * pow(x, 2.0) + 16.0 / 3.0) / 6.0; // 1 / 6 * (7 * x ^ 3 - 12 * x ^ 2 + 16 / 3)
 	else if (x >= 1.0 && x < 2.0)
-		return (- 7.0 / 3.0 * pow(x, 3.0) + 12.0 * pow(x, 2.0) - 20.0 * x + 32.0 / 3.0) / 6.0; // 1 / 6 * (-7 / 3 * x ^ 3 + 12 * x ^ 2 - 20 * x + 32 / 3)
+		return (-7.0 / 3.0 * pow(x, 3.0) + 12.0 * pow(x, 2.0) - 20.0 * x + 32.0 / 3.0) / 6.0; // 1 / 6 * (-7 / 3 * x ^ 3 + 12 * x ^ 2 - 20 * x + 32 / 3)
 	else
 		return 0.0;
 }
@@ -509,6 +509,7 @@ Pixel Image::MagnifyX(double a, double b, double s)
 	double x = round(a / s);
 	double y = b;
 	double w = WIDTH / s;
+	double normalization = 0.0;
 	Pixel p;
 	double red, green, blue;
 
@@ -521,42 +522,52 @@ Pixel Image::MagnifyX(double a, double b, double s)
 	switch (sampling_method)
 	{
 	case IMAGE_SAMPLING_POINT:
-		return GetPixel(round(a / s), b);
+		return GetPixel(floor(a / s), b);
 		break;
 	case IMAGE_SAMPLING_HAT:
 		for (double n = x - w; n <= x + w; n++)
 		{
 			double i = round(n);
+			double weight = hat(i - a / s);
 
 			if (i < 0)
 				i = -i;
 			if (i >= width)
 				i = width - (i - width) - 1;
 
-			red += hat(i - a / s) * GetPixel(i, y).r;
-			green += hat(i - a / s) * GetPixel(i, y).g;
-			blue += hat(i - a / s) * GetPixel(i, y).b;
+			if (weight != 0)
+			{
+				red += weight * GetPixel(i, y).r;
+				green += weight * GetPixel(i, y).g;
+				blue += weight * GetPixel(i, y).b;
+				normalization += weight;
+			}
 		}
 
-		p.SetClamp(round(red), round(green), round(blue));
+		p.SetClamp(round(red / normalization), round(green / normalization), round(blue / normalization));
 		return p;
 		break;
 	case IMAGE_SAMPLING_MITCHELL:
 		for (double n = x - w; n <= x + w; n++)
 		{
 			double i = round(n);
+			double weight = mitchell(i - a / s);
 
 			if (i < 0)
 				i = -i;
 			if (i >= width)
 				i = width - (i - width) - 1;
 
-			red += mitchell(i - a / s) * GetPixel(i, y).r;
-			green += mitchell(i - a / s) * GetPixel(i, y).g;
-			blue += mitchell(i - a / s) * GetPixel(i, y).b;
+			if (weight != 0)
+			{
+				red += weight * GetPixel(i, y).r;
+				green += weight * GetPixel(i, y).g;
+				blue += weight * GetPixel(i, y).b;
+				normalization += weight;
+			}
 		}
 
-		p.SetClamp(round(red), round(green), round(blue));
+		p.SetClamp(round(red / normalization), round(green / normalization), round(blue / normalization));
 		return p;
 		break;
 	default:
@@ -570,9 +581,14 @@ Pixel Image::MinifyX(double a, double b, double s)
 	double x = round(a / s);
 	double y = b;
 	double w = WIDTH / s;
-	double normalization = 2 * w;
+	double normalization = 0.0;
 	Pixel p;
 	double red, green, blue;
+	double ored, ogreen, oblue;
+
+	ored = GetPixel(x, y).r;
+	ogreen = GetPixel(x, y).g;
+	oblue = GetPixel(x, y).b;
 
 	red = 0;
 	green = 0;
@@ -589,36 +605,47 @@ Pixel Image::MinifyX(double a, double b, double s)
 		for (double n = x - w; n <= x + w; n++)
 		{
 			double i = round(n);
+			double weight = hat(i * s - a);
 
 			if (i < 0)
 				i = -i;
 			if (i >= width)
 				i = width - (i - width) - 1;
 
-			red += hat(i * s - a) * GetPixel(i, y).r;
-			green += hat(i * s - a) * GetPixel(i, y).g;
-			blue += hat(i * s - a) * GetPixel(i, y).b;
+
+			if (weight != 0)
+			{
+				red += weight * GetPixel(i, y).r;
+				green += weight * GetPixel(i, y).g;
+				blue += weight * GetPixel(i, y).b;
+				normalization += weight;
+			}
 		}
 
-		p.SetClamp(round(red), round(green), round(blue));
+		p.SetClamp(floor(red / normalization), floor(green / normalization), floor(blue / normalization));
 		return p;
 		break;
 	case IMAGE_SAMPLING_MITCHELL:
 		for (double n = x - w; n <= x + w; n++)
 		{
 			double i = round(n);
-
+			double weight = mitchell(i * s - a);
+			
 			if (i < 0)
 				i = -i;
 			if (i >= width)
 				i = width - (i - width) - 1;
 
-			red += mitchell(i * s - a) * GetPixel(i, y).r;
-			green += mitchell(i * s - a) * GetPixel(i, y).g;
-			blue += mitchell(i * s - a) * GetPixel(i, y).b;
+			if (weight != 0)
+			{
+				red += weight * GetPixel(i, y).r;
+				green += weight * GetPixel(i, y).g;
+				blue += weight * GetPixel(i, y).b;
+				normalization += weight;
+			}
 		}
 
-		p.SetClamp(round(red), round(green), round(blue));
+		p.SetClamp(floor(red / normalization), floor(green / normalization), floor(blue / normalization));
 		return p;
 		break;
 	default:
@@ -631,7 +658,8 @@ Pixel Image::MagnifyY(double a, double b, double s)
 {
 	double x = a;
 	double y = round(b / s);
-	double w = WIDTH / s;
+	double w = WIDTH / s;	
+	double normalization = 0.0;
 	Pixel p;
 	double red, green, blue;
 
@@ -644,40 +672,50 @@ Pixel Image::MagnifyY(double a, double b, double s)
 	switch (sampling_method)
 	{
 	case IMAGE_SAMPLING_POINT:
-		return GetPixel(a, round(b / s));
+		return GetPixel(a, floor(b / s));
 		break;
 	case IMAGE_SAMPLING_HAT:
 		for (double n = y - w; n <= y + w; n++)
 		{
 			double i = round(n);
+			double weight = hat(i - b / s);
 
 			if (i < 0)
 				i = -i;
 			if (i >= height)
 				i = height - (i - height) - 1;
 
-			red += hat(i - b / s) * GetPixel(x, i).r;
-			green += hat(i - b / s) * GetPixel(x, i).g;
-			blue += hat(i - b / s) * GetPixel(x, i).b;
+			if (weight != 0)
+			{
+				red += weight * GetPixel(x, i).r;
+				green += weight * GetPixel(x, i).g;
+				blue += weight * GetPixel(x, i).b;
+				normalization += weight;
+			}
 		}
-		p.SetClamp(round(red), round(green), round(blue));
+		p.SetClamp(round(red / normalization), round(green / normalization), round(blue / normalization));
 		return p;
 		break;
 	case IMAGE_SAMPLING_MITCHELL:
 		for (double n = y - w; n <= y + w; n++)
 		{
 			double i = round(n);
+			double weight = mitchell(i - b / s);
 
 			if (i < 0)
 				i = -i;
 			if (i >= height)
 				i = height - (i - height) - 1;
 
-			red += mitchell(i - b / s) * GetPixel(x, i).r;
-			green += mitchell(i - b / s) * GetPixel(x, i).g;
-			blue += mitchell(i - b / s) * GetPixel(x, i).b;
+			if (weight != 0)
+			{
+				red += weight * GetPixel(x, i).r;
+				green += weight * GetPixel(x, i).g;
+				blue += weight * GetPixel(x, i).b;
+				normalization += weight;
+			}
 		}
-		p.SetClamp(round(red), round(green), round(blue));
+		p.SetClamp(round(red / normalization), round(green / normalization), round(blue / normalization));
 		return p;
 		break;
 	default:
@@ -691,7 +729,7 @@ Pixel Image::MinifyY(double a, double b, double s)
 	double x = a;
 	double y = round(b / s);
 	double w = WIDTH / s;
-	double normalization = 2 * w;	
+	double normalization = 0.0;
 	Pixel p;
 	double red, green, blue;
 
@@ -710,17 +748,22 @@ Pixel Image::MinifyY(double a, double b, double s)
 		for (double n = y - w; n <= y + w; n++)
 		{
 			double i = round(n);
+			double weight = hat(i * s - b);
 
 			if (i < 0)
 				i = -i;
 			if (i >= height)
 				i = height - (i - height) - 1;
-
-			red += hat(i * s - b) * GetPixel(x, i).r;
-			green += hat(i * s - b) * GetPixel(x, i).g;
-			blue += hat(i * s - b) * GetPixel(x, i).b;
+			
+			if (weight != 0)
+			{
+				red += weight * GetPixel(x, i).r;
+				green += weight * GetPixel(x, i).g;
+				blue += weight * GetPixel(x, i).b;
+				normalization += weight;
+			}
 		}
-		p.SetClamp(round(red), round(green), round(blue));
+		p.SetClamp(round(red / normalization), round(green / normalization), round(blue / normalization));
 		return p;
 		break;
 	case IMAGE_SAMPLING_MITCHELL:
@@ -728,17 +771,22 @@ Pixel Image::MinifyY(double a, double b, double s)
 		for (double n = y - w; n <= y + w; n++)
 		{
 			double i = round(n);
+			double weight = mitchell(i * s - b);
 
 			if (i < 0)
 				i = -i;
 			if (i >= height)
 				i = height - (i - height) - 1;
-
-			red += mitchell(i * s - b) * GetPixel(x, i).r;
-			green += mitchell(i * s - b) * GetPixel(x, i).g;
-			blue += mitchell(i * s - b) * GetPixel(x, i).b;
+			
+			if (weight != 0)
+			{
+				red += weight * GetPixel(x, i).r;
+				green += weight * GetPixel(x, i).g;
+				blue += weight * GetPixel(x, i).b;
+				normalization += weight;
+			}
 		}
-		p.SetClamp(round(red), round(green), round(blue));
+		p.SetClamp(round(red / normalization), round(green / normalization), round(blue / normalization));
 		return p;
 		
 		break;
@@ -799,6 +847,7 @@ Pixel Image::ShiftX(double a, double b, double s)
 			red += hat(i - a + s) * GetPixel(i, y).r;
 			green += hat(i - a + s) * GetPixel(i, y).g;
 			blue += hat(i - a + s) * GetPixel(i, y).b;
+
 		}
 
 		p.SetClamp(round(red), round(green), round(blue));
